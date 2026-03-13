@@ -9,11 +9,14 @@ from pypdf import PdfReader
 # -----------------------------
 # CARGAR API KEY
 # -----------------------------
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
+if "OPENAI_API_KEY" in st.secrets:
+    api_key = st.secrets["OPENAI_API_KEY"]
+else:
+    load_dotenv()
+    api_key = os.getenv("OPENAI_API_KEY")
 
 if not api_key:
-    st.error("No se encontró la API KEY en el archivo .env")
+    st.error("No se encontró la API KEY. Verifica tu archivo .env")
     st.stop()
 
 client = OpenAI(api_key=api_key)
