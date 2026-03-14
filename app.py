@@ -38,6 +38,7 @@ body {
     background-color: #0f172a;
 }
 
+/* Avatar principal */
 .avatar {
     font-size: 80px;
     text-align: center;
@@ -50,6 +51,7 @@ body {
     to { text-shadow: 0 0 30px #00f7ff; }
 }
 
+/* CONTENEDOR CHAT */
 .chat-container {
     display: flex;
     flex-direction: column;
@@ -57,6 +59,7 @@ body {
     margin-top: 25px;
 }
 
+/* FILA IA */
 .assistant-row {
     display: flex;
     align-items: flex-start;
@@ -64,10 +67,12 @@ body {
     margin-bottom: 12px;
 }
 
+/* ICONO IA */
 .assistant-icon {
     font-size: 28px;
 }
 
+/* BURBUJA IA */
 .assistant-msg {
     background: #1e293b;
     color: #e2e8f0;
@@ -79,6 +84,7 @@ body {
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
+/* FILA USUARIO */
 .user-row {
     display: flex;
     justify-content: flex-end;
@@ -87,10 +93,12 @@ body {
     margin-bottom: 12px;
 }
 
+/* ICONO USUARIO */
 .user-icon {
     font-size: 26px;
 }
 
+/* BURBUJA USUARIO */
 .user-msg {
     background: linear-gradient(135deg,#15803d,#166534);
     color: white;
@@ -137,6 +145,9 @@ if "cv_evaluated" not in st.session_state:
 
 if "last_audio_id" not in st.session_state:
     st.session_state.last_audio_id = None
+
+if "mic_used" not in st.session_state:
+    st.session_state.mic_used = False
 
 # -----------------------------
 # SELECCIÓN ÁREA
@@ -220,6 +231,7 @@ if st.button("Iniciar Entrevista") and not st.session_state.started:
     st.session_state.scores = []
     st.session_state.question_count = 0
     st.session_state.finished = False
+    st.session_state.mic_used = False
 
     system_prompt = f"""
 Eres NOVAHIRE, una IA entrevistadora profesional.
@@ -290,17 +302,23 @@ if (
 
     st.write("✏️ Escribe tu respuesta o usa el micrófono")
 
-    audio = mic_recorder(
-        start_prompt="🎤 Hablar",
-        stop_prompt="⏹️ Detener",
-        use_container_width=True
-    )
+    audio = None
+
+    if not st.session_state.mic_used:
+        audio = mic_recorder(
+            start_prompt="🎤 Hablar",
+            stop_prompt="⏹️ Detener",
+            use_container_width=True
+        )
+    else:
+        st.info("El micrófono solo puede usarse una vez durante la entrevista.")
 
     user_input = st.chat_input("Responde a NOVAHIRE...")
 
     if audio and audio["id"] != st.session_state.last_audio_id:
 
         st.session_state.last_audio_id = audio["id"]
+        st.session_state.mic_used = True
 
         audio_bytes = audio["bytes"]
 
