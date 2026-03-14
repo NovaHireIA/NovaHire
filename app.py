@@ -7,13 +7,11 @@ from streamlit_mic_recorder import mic_recorder
 from pypdf import PdfReader
 
 # -----------------------------
-# CARGAR API KEY
+# CARGAR API KEY LOCAL (.env)
 # -----------------------------
-if "OPENAI_API_KEY" in st.secrets:
-    api_key = st.secrets["OPENAI_API_KEY"]
-else:
-    load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
+load_dotenv()
+
+api_key = os.getenv("OPENAI_API_KEY")
 
 if not api_key:
     st.error("No se encontró la API KEY. Verifica tu archivo .env")
@@ -35,19 +33,74 @@ st.set_page_config(
 # -----------------------------
 st.markdown("""
 <style>
+
 body {
     background-color: #0f172a;
 }
+
 .avatar {
     font-size: 80px;
     text-align: center;
     color: #00f7ff;
     animation: glow 1.5s infinite alternate;
 }
+
 @keyframes glow {
     from { text-shadow: 0 0 10px #00f7ff; }
     to { text-shadow: 0 0 30px #00f7ff; }
 }
+
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    margin-top: 25px;
+}
+
+.assistant-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.assistant-icon {
+    font-size: 28px;
+}
+
+.assistant-msg {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 16px;
+    border-radius: 14px;
+    max-width: 80%;
+    font-size: 15px;
+    border: 1px solid #334155;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.user-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.user-icon {
+    font-size: 26px;
+}
+
+.user-msg {
+    background: linear-gradient(135deg,#15803d,#166534);
+    color: white;
+    padding: 16px;
+    border-radius: 14px;
+    max-width: 80%;
+    font-size: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -85,13 +138,20 @@ if "cv_evaluated" not in st.session_state:
 if "last_audio_id" not in st.session_state:
     st.session_state.last_audio_id = None
 
-if "mic_used" not in st.session_state:
-    st.session_state.mic_used = False
-
 # -----------------------------
 # SELECCIÓN ÁREA
 # -----------------------------
-area = st.selectbox("Selecciona tu área:", ["Sistemas", "Administración"])
+areas_empresa = [
+    "Sistemas",
+    "Administración",
+    "Contabilidad",
+    "Producción",
+    "Procesos",
+    "Recursos Humanos",
+    "Logística"
+]
+
+area = st.selectbox("Selecciona tu área:", areas_empresa)
 
 # -----------------------------
 # SUBIR CV
@@ -119,17 +179,17 @@ if uploaded_file and not st.session_state.cv_evaluated:
         st.session_state.cv_text = texto_cv
 
         prompt_cv = f"""
-        Analiza este currículum para el puesto de {area}.
+Analiza este currículum para el puesto de {area}.
 
-        Evalúa experiencia, habilidades y educación.
+Evalúa experiencia, habilidades y educación.
 
-        Da una puntuación del 1 al 10.
+Da una puntuación del 1 al 10.
 
-        Responde EXACTAMENTE así:
+Responde EXACTAMENTE así:
 
-        PUNTUACIÓN CV: X/10
-        OPINIÓN: breve análisis del perfil
-        """
+PUNTUACIÓN CV: X/10
+OPINIÓN: breve análisis del perfil
+"""
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -160,21 +220,20 @@ if st.button("Iniciar Entrevista") and not st.session_state.started:
     st.session_state.scores = []
     st.session_state.question_count = 0
     st.session_state.finished = False
-    st.session_state.mic_used = False
 
     system_prompt = f"""
-    Eres NOVAHIRE, una IA entrevistadora profesional.
+Eres NOVAHIRE, una IA entrevistadora profesional.
 
-    Estás entrevistando para el área de {area}.
+Estás entrevistando para el área de {area}.
 
-    Después de cada respuesta:
-    - Evalúa del 1 al 10
-    - Escribe: PUNTUACIÓN: X/10
-    - Explica brevemente
-    - Haz la siguiente pregunta
+Después de cada respuesta:
+- Evalúa del 1 al 10
+- Escribe: PUNTUACIÓN: X/10
+- Explica brevemente
+- Haz la siguiente pregunta
 
-    Haz 5 preguntas.
-    """
+Haz 5 preguntas.
+"""
 
     st.session_state.messages.append(
         {"role": "system", "content": system_prompt}
@@ -192,9 +251,33 @@ if st.button("Iniciar Entrevista") and not st.session_state.started:
 # -----------------------------
 # MOSTRAR CHAT
 # -----------------------------
+st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
+
 for msg in st.session_state.messages:
-    if msg["role"] != "system":
-        st.chat_message(msg["role"]).write(msg["content"])
+
+    if msg["role"] == "assistant":
+
+        st.markdown(f"""
+        <div class="assistant-row">
+            <div class="assistant-icon">🤖</div>
+            <div class="assistant-msg">
+                {msg['content']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    elif msg["role"] == "user":
+
+        st.markdown(f"""
+        <div class="user-row">
+            <div class="user-msg">
+                {msg['content']}
+            </div>
+            <div class="user-icon">👤</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
 # RESPUESTA USUARIO
@@ -207,29 +290,17 @@ if (
 
     st.write("✏️ Escribe tu respuesta o usa el micrófono")
 
-    audio = None
-
-    # MICRÓFONO SOLO UNA VEZ
-    if not st.session_state.mic_used:
-
-        audio = mic_recorder(
-            start_prompt="🎤 Hablar",
-            stop_prompt="⏹️ Detener",
-            use_container_width=True
-        )
-
-    else:
-        st.info("El micrófono solo puede usarse una vez durante la entrevista.")
+    audio = mic_recorder(
+        start_prompt="🎤 Hablar",
+        stop_prompt="⏹️ Detener",
+        use_container_width=True
+    )
 
     user_input = st.chat_input("Responde a NOVAHIRE...")
 
-    # -----------------------------
-    # TRANSCRIPCIÓN DE VOZ
-    # -----------------------------
     if audio and audio["id"] != st.session_state.last_audio_id:
 
         st.session_state.last_audio_id = audio["id"]
-        st.session_state.mic_used = True
 
         audio_bytes = audio["bytes"]
 
@@ -239,12 +310,8 @@ if (
         )
 
         user_input = transcription.text
-
         st.write("🗣️ Dijiste:", user_input)
 
-    # -----------------------------
-    # PROCESAR RESPUESTA
-    # -----------------------------
     if user_input:
 
         st.session_state.messages.append(
@@ -292,26 +359,23 @@ if st.session_state.finished:
         cv_text = st.session_state.cv_text[:2000]
 
     prompt_final = f"""
-    Eres un reclutador profesional.
+Eres un reclutador profesional.
 
-    Evalúa al candidato considerando:
+Evalúa al candidato considerando:
+- Sus respuestas en la entrevista
+- Su curriculum (si existe)
 
-    - Sus respuestas en la entrevista
-    - Su curriculum (si existe)
+RESPUESTAS:
+{respuestas}
 
-    RESPUESTAS:
-    {respuestas}
+CURRICULUM:
+{cv_text}
 
-    CURRICULUM:
-    {cv_text}
+Responde EXACTAMENTE así:
 
-    Responde EXACTAMENTE así:
-
-    EVALUACIÓN FINAL:
-    breve explicación
-
-    PUNTUACIÓN FINAL: X/10
-    """
+EVALUACIÓN FINAL: breve explicación
+PUNTUACIÓN FINAL: X/10
+"""
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -337,7 +401,9 @@ if st.session_state.finished:
         if score >= 8:
             st.balloons()
             st.write("🔥 Excelente candidato")
+
         elif score >= 6:
             st.write("👍 Buen candidato")
+
         else:
             st.write("⚠️ El candidato necesita mejorar habilidades")
